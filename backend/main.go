@@ -1,6 +1,7 @@
 package main
 
 import (
+    "database/sql"
     "log"
     "net/http"
     "time"
@@ -8,7 +9,20 @@ import (
     "github.com/gin-gonic/gin"
 )
 
+var db *sql.DB
+
 func main() {
+    LoadEnv()
+
+    // Connect to database
+    db = ConnectDB()
+    defer func() {
+        // Ensure the connection is closed when the program exits
+        if err := db.Close(); err != nil {
+            log.Printf("Error closing database connection: %v", err)
+        }
+    }()
+
     router := gin.Default()
 
     // CORS middleware configuration
@@ -17,15 +31,30 @@ func main() {
         AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
         ExposeHeaders:    []string{"Content-Length"},
-        AllowCredentials: true,
+        AllowCredentials: false,
         MaxAge:           12 * time.Hour,
     }))
 
-    // health check
-    router.GET("/api/health", func(ginContext *gin.Context) {
-        ginContext.JSON(http.StatusOK, gin.H{
-            "status": "ok",
+    // Database test endpoint
+    router.GET("/api/db-test", func(c *gin.Context) {
+        var now string
+        err := db.QueryRow("SELECT NOW()").Scan(&now)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error":   "Database query failed",
+                "details": err.Error(),
+            })
+            return
+        }
+        c.JSON(http.StatusOK, gin.H{
+            "db_time": now,
+            "message": "Database connection is working!",
         })
+    })
+
+    // health check
+    router.GET("/api/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
     })
 
     // runs the server
