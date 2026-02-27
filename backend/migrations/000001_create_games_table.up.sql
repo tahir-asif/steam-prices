@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS games (
+    id SERIAL PRIMARY KEY,
+    steam_app_id INTEGER UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
