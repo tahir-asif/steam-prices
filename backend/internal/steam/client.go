@@ -4,6 +4,7 @@ package steam
 
 import (
 	"encoding/json"
+	"log"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,7 +33,11 @@ func (c *Client) FetchGameDetails(appID int) (*SteamGame, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing HTTP client: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("steam API returned non-200 status: %d", resp.StatusCode)
