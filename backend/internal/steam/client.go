@@ -35,7 +35,7 @@ func (c *Client) FetchGameDetails(appID int) (*SteamGame, error) {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Error closing HTTP client: %v", err)
+			log.Printf("Error closing database: %v", err)
 		}
 	}()
 

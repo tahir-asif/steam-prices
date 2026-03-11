@@ -11,7 +11,8 @@ import (
 )
 
 // LoadEnv loads environment variables from .env file for local development.
-// In production, environment variables are already set by the hosting platform.
+// In production, environment variables are already set by the hosting platform
+// and so LoadEnv does nothing.
 func LoadEnv() {
 	// If DATABASE_URL is already set, we're likely in production.
 	// Do nothing.
