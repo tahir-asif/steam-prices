@@ -27,7 +27,7 @@ func NewClient() *Client {
 
 // FetchGameDetails retrieves game information using the client.
 func (c *Client) FetchGameDetails(appID int) (*SteamGame, error) {
-	url := fmt.Sprintf("%s/appdetails?appids=%d&cc=us", c.BaseURL, appID)
+	url := fmt.Sprintf("%s/appdetails?appids=%d&cc=ca", c.BaseURL, appID)
 
 	resp, err := c.HTTPClient.Get(url)
 	if err != nil {
