@@ -3,6 +3,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"time"
 
@@ -28,9 +29,21 @@ func main() {
 	}()
 
 	// Create router
+	router := SetupRouter(db)
+
+	// Runs the server
+	log.Println("Server is running on http://localhost:3000")
+	if err := router.Run(":3000"); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+// SetupRouter configures the Gin engine with middleware and routes.
+// It is exported so it can be used in tests.
+func SetupRouter(db *sql.DB) *gin.Engine {
 	router := gin.Default()
 
-	// CORS middleware configuration
+	// CORS middleware
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -40,16 +53,12 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// listen for API requests from front end
 	h := &handlers.Handler{DB: db}
-	router.GET("/api/health", h.Health)
-    router.GET("/api/db-test", h.DBTest)
-    router.GET("/api/search", h.Search)
-    router.GET("/api/games/:appid/history", h.PriceHistory)
 
-	// runs the server
-	log.Println("Server is running on http://localhost:3000")
-	if err := router.Run(":3000"); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	router.GET("/api/health", h.Health)
+	router.GET("/api/db-test", h.DBTest)
+	router.GET("/api/search", h.Search)
+	router.GET("/api/games/:appid/history", h.PriceHistory)
+
+	return router
 }
