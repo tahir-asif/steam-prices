@@ -1,91 +1,16 @@
 package database
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4"
-	migratedb "github.com/golang-migrate/migrate/v4/database/postgres" // alias to avoid conflict
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/tahir-asif/steam-prices/internal/testutils"
 )
-
-// setupTestDB spins up a fresh PostgreSQL container, runs migrations,
-// and returns a connected *sql.DB along with a cleanup function.
-func setupTestDB(t *testing.T) (*sql.DB, func()) {
-	ctx := context.Background()
-
-	// Start PostgreSQL container
-	pgContainer, err := postgres.Run(ctx,
-		"postgres:16-alpine",
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"),
-		postgres.BasicWaitStrategies(),
-	)
-	if err != nil {
-		t.Fatalf("failed to start postgres container: %v", err)
-	}
-
-	// Get connection string
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	// Connect to the test database
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
-	}
-
-	// Run migrations from the migrations directory
-	if err := runMigrations(db, "../migrations"); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
-	}
-
-	// Cleanup function to close DB and terminate container
-	cleanup := func() {
-		db.Close()
-		if err := testcontainers.TerminateContainer(pgContainer); err != nil {
-			t.Logf("failed to terminate container: %v", err)
-		}
-	}
-
-	return db, cleanup
-}
-
-// runMigrations applies all pending migrations from the specified path
-// using the golang-migrate library.
-func runMigrations(db *sql.DB, migrationsPath string) error {
-	driver, err := migratedb.WithInstance(db, &migratedb.Config{})
-	if err != nil {
-		return err
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
-		"postgres",
-		driver,
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return err
-	}
-
-	return nil
-}
 
 // TestInsertGame verifies that InsertGame correctly adds a new game
 // and handles conflicts appropriately.
 func TestInsertGame(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
 	// Insert a new game
@@ -119,7 +44,7 @@ func TestInsertGame(t *testing.T) {
 
 // TestGetGameIDBySteamAppID tests the retrieval of internal IDs.
 func TestGetGameIDBySteamAppID(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
 	// Insert a game first
@@ -146,7 +71,7 @@ func TestGetGameIDBySteamAppID(t *testing.T) {
 
 // TestPriceHistoryFunctions tests inserting and retrieving price history.
 func TestPriceHistoryFunctions(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
 	// Insert a game
