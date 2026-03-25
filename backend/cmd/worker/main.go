@@ -28,13 +28,7 @@ func main() {
 	steamClient := steam.NewClient()
 
 	// List of Steam App IDs to track (popular games)
-	trackedAppIDs := []int{
-		730,    // Counter-Strike 2
-		570,    // Dota 2
-		440,    // Team Fortress 2
-		292030, // The Witcher 3: Wild Hunt
-		271590, // Grand Theft Auto V
-	}
+	trackedAppIDs := getTrackedAppIDs(db)
 
 	log.Printf("Worker started. Tracking %d games.", len(trackedAppIDs))
 
@@ -48,6 +42,24 @@ func main() {
 	for range ticker.C {
 		runPriceCheck(db, steamClient, trackedAppIDs)
 	}
+}
+
+func getTrackedAppIDs(db *sql.DB) []int {
+	rows, err := db.Query("SELECT steam_app_id FROM games")
+	if err != nil {
+		log.Printf("Error fetching tracked games: %v", err)
+		return []int{730, 570, 440, 292030, 271590} // fallback
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // runPriceCheck fetches current prices for all tracked games and records
