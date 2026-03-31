@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import HomePage from './pages/HomePage'
+import GameDetailPage from './pages/GameDetailPage'
 import './App.css'
 
 function App() {
-  const [backendStatus, setBackendStatus] = useState('Checking connection...')
-
-  useEffect(() => {
-    fetch('http://localhost:3000/api/health')
-      .then(res => res.json())
-      .then(data => setBackendStatus(`Backend says: ${data.status}`))
-      .catch(() => setBackendStatus('Error: Could not connect to backend. Is it running?'))
-  }, [])
-
   return (
-    <>
-      <h1>Steam Price Tracker</h1>
-      <p>{backendStatus}</p>
-    </>
+    <BrowserRouter>
+      <div className="app-container">
+        <header>
+          <h1>Steam Price Monitor</h1>
+        </header>
+        <main>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/game/:appid" element={<GameDetailPage />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
   )
 }
 
