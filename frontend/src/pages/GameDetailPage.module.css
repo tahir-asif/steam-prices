@@ -1,0 +1,55 @@
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.appId {
+  color: #666;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.chartContainer {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: #666;
+}
+
+.error {
+  color: #d32f2f;
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+}
+
+.note {
+  margin-top: 16px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
