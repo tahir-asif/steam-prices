@@ -47,7 +47,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{
 			"http://localhost:5173",
-			"https://steam-prices.vercel.app/",
+			"https://steam-prices.vercel.app",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
