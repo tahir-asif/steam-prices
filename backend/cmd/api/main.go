@@ -45,7 +45,10 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	// CORS middleware
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{
+			"http://localhost:5173",
+			"https://steam-prices-kc90civ8t-tahir5.vercel.app/",
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
