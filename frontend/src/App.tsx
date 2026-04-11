@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import GameDetailPage from './pages/GameDetailPage'
 import './App.css'
+import Footer from './components/Footer'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/game/:appid" element={<GameDetailPage />} />
           </Routes>
         </main>
+        <Footer/>
       </div>
     </BrowserRouter>
   )
