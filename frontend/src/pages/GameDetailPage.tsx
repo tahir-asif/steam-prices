@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   LineChart,
   Line,
@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { getPriceHistory, type PricePoint } from '../services/api'
 import styles from './GameDetailPage.module.css'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 // Helper to format price from cents to dollars
 const formatPrice = (cents: number, currency: string) => {
@@ -36,6 +37,8 @@ function GameDetailPage() {
   const [gameName, setGameName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showSlowLoading, setShowSlowLoading] = useState(false)
+  const slowTimer = useRef<number | null>(null)
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -43,14 +46,20 @@ function GameDetailPage() {
 
       try {
         setLoading(true)
-        setError(null)
+        setShowSlowLoading(false)
+
+        slowTimer.current = setTimeout(() => {
+          setShowSlowLoading(true)
+        }, 2000)
+
         const data = await getPriceHistory(parseInt(appid, 10))
         setHistory(data)
-        setGameName(`Game ${appid}`) // Placeholder
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load price history')
       } finally {
         setLoading(false)
+        setShowSlowLoading(false)
+        if (slowTimer.current) clearTimeout(slowTimer.current)
       }
     }
 
@@ -58,7 +67,12 @@ function GameDetailPage() {
   }, [appid])
 
   if (loading) {
-    return <div className={styles.loading}>Loading price history...</div>
+    return (
+      <LoadingSpinner
+        message="Fetching price history..."
+        showTimer={showSlowLoading}
+      />
+    )
   }
 
   if (error) {

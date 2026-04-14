@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchGames, type SearchResult } from '../services/api'
 import styles from './SearchBar.module.css'
+import LoadingSpinner from './LoadingSpinner'
 
 function SearchBar() {
   const [query, setQuery] = useState('')
@@ -10,6 +11,8 @@ function SearchBar() {
   const [showDropdown, setShowDropdown] = useState(false)
   const navigate = useNavigate()
   const debounceTimer = useRef<number | null>(null)
+  const [showSlowLoading, setShowSlowLoading] = useState(false)
+  const slowLoadingTimer = useRef<number | null>(null)
 
   // Effect to handle debounced search
   useEffect(() => {
@@ -41,6 +44,29 @@ function SearchBar() {
       }
     }, 300)
 
+    setIsLoading(true)
+    setShowSlowLoading(false)
+
+    // Show a more detailed loading state if request takes > 2 seconds
+    slowLoadingTimer.current = setTimeout(() => {
+      setShowSlowLoading(true)
+    }, 2000)
+
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const data = await searchGames(query)
+        setResults(data)
+        setShowDropdown(true)
+      } catch (error) {
+        console.error('Search error:', error)
+        setResults([])
+      } finally {
+        setIsLoading(false)
+        setShowSlowLoading(false)
+        if (slowLoadingTimer.current) clearTimeout(slowLoadingTimer.current)
+      }
+    }, 300)
+
     // Cleanup function to clear timer if component unmounts or query changes
     return () => {
       if (debounceTimer.current) {
@@ -68,7 +94,12 @@ function SearchBar() {
         placeholder="Search for a game..."
         className={styles.searchInput}
       />
-      {isLoading && <div className={styles.loading}>Searching...</div>}
+      {isLoading && (
+        <LoadingSpinner
+          message="Searching Steam..."
+          showTimer={showSlowLoading}
+        />
+      )}
       {showDropdown && results.length > 0 && (
         <ul className={styles.dropdown}>
           {results.map((game) => (
