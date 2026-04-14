@@ -34,7 +34,7 @@ const formatDate = (dateStr: string) => {
 function GameDetailPage() {
   const { appid } = useParams<{ appid: string }>()
   const [history, setHistory] = useState<PricePoint[]>([])
-  const [gameName, setGameName] = useState<string>('')
+  const gameName = `Game ${appid}`
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showSlowLoading, setShowSlowLoading] = useState(false)
