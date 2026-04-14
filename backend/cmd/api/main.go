@@ -17,7 +17,7 @@ import (
 
 
 func main() {
-	// Loads enviroment variables only if they aren't loaded by Render, Neon, etc.
+	// Loads enviroment variables only if they aren't loaded by Render
 	config.LoadEnv()
 
 	// Connect to database
@@ -32,10 +32,10 @@ func main() {
 	router := SetupRouter(db)
 
 	// Runs the server
-	log.Println("Server is running on http://localhost:3000")
 	if err := router.Run(":3000"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+	log.Println("Server is running.")
 }
 
 // SetupRouter configures the Gin engine with middleware and routes.
@@ -56,6 +56,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// listen for API requests
 	h := &handlers.Handler{DB: db}
 
 	router.GET("/api/health", h.Health)
