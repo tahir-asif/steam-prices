@@ -11,8 +11,6 @@ function SearchBar() {
   const [showDropdown, setShowDropdown] = useState(false)
   const navigate = useNavigate()
   const debounceTimer = useRef<number | null>(null)
-  const [showSlowLoading, setShowSlowLoading] = useState(false)
-  const slowLoadingTimer = useRef<number | null>(null)
 
   // Effect to handle debounced search
   useEffect(() => {
@@ -45,12 +43,8 @@ function SearchBar() {
     }, 300)
 
     setIsLoading(true)
-    setShowSlowLoading(false)
 
     // Show a more detailed loading state if request takes > 2 seconds
-    slowLoadingTimer.current = setTimeout(() => {
-      setShowSlowLoading(true)
-    }, 2000)
 
     debounceTimer.current = setTimeout(async () => {
       try {
@@ -62,8 +56,6 @@ function SearchBar() {
         setResults([])
       } finally {
         setIsLoading(false)
-        setShowSlowLoading(false)
-        if (slowLoadingTimer.current) clearTimeout(slowLoadingTimer.current)
       }
     }, 300)
 
@@ -94,12 +86,7 @@ function SearchBar() {
         placeholder="Search for a game..."
         className={styles.searchInput}
       />
-      {isLoading && (
-        <LoadingSpinner
-          message="Searching Steam..."
-          showTimer={showSlowLoading}
-        />
-      )}
+      {isLoading && <LoadingSpinner message="Searching Steam..." />}
       {showDropdown && results.length > 0 && (
         <ul className={styles.dropdown}>
           {results.map((game) => (
