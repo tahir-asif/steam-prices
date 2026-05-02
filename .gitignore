@@ -50,3 +50,12 @@ dist-ssr
 *.sln
 *.sw?
 *.swp
+
+*.pem
+
+# AWS CLI installer
+AWSCLIV2.pkg
+
+# Lambda binary and archive
+backend/bootstrap
+backend/function.zip

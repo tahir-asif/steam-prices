@@ -1,5 +1,10 @@
 // Use environment variable for API base URL, fallback to localhost for development
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+let API_BASE = '/api'
+if (import.meta.env.VITE_API_URL) {
+  API_BASE = import.meta.env.VITE_API_URL
+} else if (import.meta.env.DEV) {
+  API_BASE = 'http://localhost:3000/api'
+}
 
 export interface SearchResult {
   appid: number
