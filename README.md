@@ -26,7 +26,7 @@ A full‑stack web application that tracks and visualizes historical Steam game 
 | **Database** | Amazon RDS for PostgreSQL | Neon (serverless PostgreSQL) |
 | **Worker** | AWS Lambda (Go) + EventBridge cron | GitHub Actions scheduled workflow |
 | **Container Registry** | Amazon ECR | – (direct Render build) |
-| **CI/CD** | AWS CodePipeline + CodeBuild + CodeDeploy (planned) | Vercel & Render auto‑deploy on push |
+| **CI/CD** | GitHub Actions | Vercel & Render auto‑deploy on push |
 | **Testing** | testcontainers‑go, Vitest, React Testing Library | – (same as current) |
 
 ## Local Development (Quick Start)
