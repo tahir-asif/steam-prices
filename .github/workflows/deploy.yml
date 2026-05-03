@@ -74,7 +74,19 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=instanceIds,Values=${{ env.EC2_INSTANCE_ID }}" \
-            --parameters '{"commands":["docker pull ${{ env.ECR_REPO }}:latest && docker stop steam-api || true && docker rm steam-api || true && docker run -d --name steam-api --restart=always -p 3000:3000 -e DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" -e WORKER_SECRET=\"${{ secrets.WORKER_SECRET }}\" -e PORT=3000 ${{ env.ECR_REPO }}:latest"]}' \
+            --parameters '{"commands":["\
+              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REPO }} \
+              && docker pull ${{ env.ECR_REPO }}:latest \
+              && docker stop steam-api || true \
+              && docker rm -f steam-api || true \
+              && docker run -d \
+                --name steam-api \
+                --restart=always \
+                -p 3000:3000 \
+                -e DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" \
+                -e WORKER_SECRET=\"${{ secrets.WORKER_SECRET }}\" \
+                -e PORT=3000 \
+                ${{ env.ECR_REPO }}:latest"]}' \
             --region ${{ env.AWS_REGION }} \
             --query "Command.CommandId" --output text)
 
