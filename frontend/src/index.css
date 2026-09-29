@@ -12,8 +12,6 @@
   --focus-ring: rgba(102, 192, 244, 0.25);
   --danger: #ff6b6b;
   --success: #4caf50;
-  --glass-bg: rgba(22, 32, 45, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.08);
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -30,8 +28,6 @@
   --focus-ring: rgba(27, 110, 194, 0.25);
   --danger: #d32f2f;
   --success: #2e7d32;
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(27, 40, 56, 0.08);
   --shadow: 0 8px 24px rgba(27, 40, 56, 0.12);
 }
 
