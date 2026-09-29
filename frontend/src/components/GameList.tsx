@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import styles from './GameList.module.css'
 
@@ -12,6 +13,27 @@ interface GameListProps {
   games: GameListItem[]
 }
 
+const steamCapsule = (appid: number) =>
+  `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/capsule_231x87.jpg`
+
+function GameThumb({ appid, icon }: { appid: number; icon?: string }) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return <span className={styles.iconPlaceholder} aria-hidden="true" />
+  }
+
+  return (
+    <img
+      src={icon ?? steamCapsule(appid)}
+      alt=""
+      loading="lazy"
+      className={styles.icon}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 function GameList({ title, games }: GameListProps) {
   return (
     <section className={styles.list}>
@@ -23,11 +45,7 @@ function GameList({ title, games }: GameListProps) {
           {games.map((game) => (
             <li key={game.appid}>
               <Link to={`/game/${game.appid}`} className={styles.item}>
-                {game.icon ? (
-                  <img src={game.icon} alt="" className={styles.icon} />
-                ) : (
-                  <span className={styles.iconPlaceholder} aria-hidden="true" />
-                )}
+                <GameThumb appid={game.appid} icon={game.icon} />
                 <span className={styles.name}>{game.name}</span>
               </Link>
             </li>

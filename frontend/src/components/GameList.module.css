@@ -36,7 +36,7 @@
 
 .icon,
 .iconPlaceholder {
-  width: 36px;
+  width: 64px;
   height: 36px;
   border-radius: 6px;
   flex-shrink: 0;
