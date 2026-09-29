@@ -42,6 +42,12 @@ func main() {
 func SetupRouter(db *sql.DB) *gin.Engine {
 	router := gin.Default()
 
+	// Render runs behind a proxy; don't trust all proxies (avoids the
+	// "You trusted all proxies" warning and spoofable client IPs).
+	if err := router.SetTrustedProxies(nil); err != nil {
+		log.Printf("Warning: failed to set trusted proxies: %v", err)
+	}
+
 	// CORS middleware
 	router.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
