@@ -275,120 +275,126 @@ function GameDetailPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.page}>
       {appid && !heroFailed && (
-        <img
-          src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_hero.jpg`}
-          alt=""
-          className={styles.heroImage}
-          onError={() => setHeroFailed(true)}
-        />
+        <div className={styles.hero}>
+          <img
+            src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_hero.jpg`}
+            alt=""
+            className={styles.heroImage}
+            onError={() => setHeroFailed(true)}
+          />
+        </div>
       )}
 
-      <Link to="/" className={styles.backLink}>← Back to Search</Link>
+      <div className={styles.content}>
+        <div className={styles.container}>
+          <Link to="/" className={styles.backLink}>← Back to Search</Link>
 
-      <div className={styles.header}>
-        <h2 className={styles.title}>{gameName}</h2>
-        <p className={styles.appId}>Steam App ID: {appid}</p>
+          <div className={styles.header}>
+            <h2 className={styles.title}>{gameName}</h2>
+            <p className={styles.appId}>Steam App ID: {appid}</p>
+          </div>
+
+          {prepared.length === 0 ? (
+            <p>No price history available yet. Check back later!</p>
+          ) : (
+            <>
+              <div className={styles.stats}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Current Price</span>
+                  <span className={styles.statValue}>
+                    {formatPrice(currentPrice, currency)}
+                    {atRecordedLow && (
+                      <span className={`${styles.badge} ${styles.badgeLow}`}>
+                        Recorded low
+                      </span>
+                    )}
+                    {atRecordedHigh && (
+                      <span className={`${styles.badge} ${styles.badgeHigh}`}>
+                        Recorded high
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Highest Price</span>
+                  <span className={styles.statValue}>
+                    {formatPrice(maxPrice, currency)}
+                  </span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Lowest Price</span>
+                  <span className={styles.statValue}>
+                    {formatPrice(minPrice, currency)}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.chartContainer}>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart
+                    data={chartPoints}
+                    margin={{ top: 16, right: 16, bottom: 8, left: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      scale="time"
+                      domain={xDomain}
+                      tickFormatter={(value) => formatDate(value)}
+                      tick={{ fontSize: 12 }}
+                      tickMargin={14}
+                      minTickGap={32}
+                    />
+                    <YAxis
+                      tickFormatter={(value) => formatPrice(value, currency)}
+                      tick={{ fontSize: 12 }}
+                      domain={[0, yMax]}
+                      tickCount={5}
+                      allowDecimals={false}
+                      width={70}
+                      tickMargin={8}
+                    />
+                    <Tooltip content={() => null} cursor={false} />
+                    <Line
+                      type="stepAfter"
+                      dataKey="price"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      dot={renderDot}
+                      activeDot={{ r: 6 }}
+                      isAnimationActive={false}
+                    />
+                    <PointLabel />
+                  </LineChart>
+                </ResponsiveContainer>
+                {singlePoint && (
+                  <p className={styles.note}>
+                    We just started tracking this game. More data will appear over time.
+                  </p>
+                )}
+              </div>
+
+              <div className={styles.ranges}>
+                {RANGES.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setRange(option)}
+                    className={`${styles.rangeButton} ${
+                      range === option ? styles.rangeButtonActive : ''
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-
-      {prepared.length === 0 ? (
-        <p>No price history available yet. Check back later!</p>
-      ) : (
-        <>
-          <div className={styles.stats}>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Current Price</span>
-              <span className={styles.statValue}>
-                {formatPrice(currentPrice, currency)}
-                {atRecordedLow && (
-                  <span className={`${styles.badge} ${styles.badgeLow}`}>
-                    Recorded low
-                  </span>
-                )}
-                {atRecordedHigh && (
-                  <span className={`${styles.badge} ${styles.badgeHigh}`}>
-                    Recorded high
-                  </span>
-                )}
-              </span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Highest Price</span>
-              <span className={styles.statValue}>
-                {formatPrice(maxPrice, currency)}
-              </span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Lowest Price</span>
-              <span className={styles.statValue}>
-                {formatPrice(minPrice, currency)}
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart
-                data={chartPoints}
-                margin={{ top: 16, right: 16, bottom: 8, left: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="time"
-                  type="number"
-                  scale="time"
-                  domain={xDomain}
-                  tickFormatter={(value) => formatDate(value)}
-                  tick={{ fontSize: 12 }}
-                  tickMargin={14}
-                  minTickGap={32}
-                />
-                <YAxis
-                  tickFormatter={(value) => formatPrice(value, currency)}
-                  tick={{ fontSize: 12 }}
-                  domain={[0, yMax]}
-                  tickCount={5}
-                  allowDecimals={false}
-                  width={70}
-                  tickMargin={8}
-                />
-                <Tooltip content={() => null} cursor={false} />
-                <Line
-                  type="stepAfter"
-                  dataKey="price"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  dot={renderDot}
-                  activeDot={{ r: 6 }}
-                  isAnimationActive={false}
-                />
-                <PointLabel />
-              </LineChart>
-            </ResponsiveContainer>
-            {singlePoint && (
-              <p className={styles.note}>
-                We just started tracking this game. More data will appear over time.
-              </p>
-            )}
-          </div>
-
-          <div className={styles.ranges}>
-            {RANGES.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setRange(option)}
-                className={`${styles.rangeButton} ${
-                  range === option ? styles.rangeButtonActive : ''
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }
