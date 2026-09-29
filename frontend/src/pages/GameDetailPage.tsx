@@ -8,22 +8,43 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  useActiveTooltipDataPoints,
+  useActiveTooltipCoordinate,
+  useCartesianScale,
+  usePlotArea,
 } from 'recharts'
-import { getPriceHistory, type PricePoint } from '../services/api'
+import {
+  getGamePriceHistory,
+  type GamePriceData,
+  type PricePoint,
+} from '../services/api'
 import styles from './GameDetailPage.module.css'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-// Helper to format price from cents to dollars
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Format cents to a currency string with a space between symbol and value
 const formatPrice = (cents: number, currency: string) => {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currency || 'USD',
+  const code = currency || 'USD'
+  const value = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(cents / 100)
+
+  try {
+    const symbol =
+      new Intl.NumberFormat(undefined, { style: 'currency', currency: code })
+        .formatToParts(0)
+        .find((part) => part.type === 'currency')?.value ?? code
+    return `${symbol} ${value}`
+  } catch {
+    return `${code} ${value}`
+  }
 }
 
 // Helper to format date
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr)
+const formatDate = (value: string | number) => {
+  const date = new Date(value)
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -31,10 +52,92 @@ const formatDate = (dateStr: string) => {
   })
 }
 
+// Round a maximum value up to a visually clean axis top
+const niceMax = (value: number) => {
+  if (value <= 0) return 100
+  const padded = value * 1.1
+  const magnitude = 10 ** Math.floor(Math.log10(padded))
+  const normalized = padded / magnitude
+  const steps = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
+  const step = steps.find((candidate) => normalized <= candidate) ?? 10
+  return step * magnitude
+}
+
+type RangeKey = '7D' | '30D' | '3M' | '6M' | 'YTD' | '1Y' | '2Y' | 'ALL'
+
+const RANGES: RangeKey[] = ['7D', '30D', '3M', '6M', 'YTD', '1Y', '2Y', 'ALL']
+
+const RANGE_DAYS: Record<string, number> = {
+  '7D': 7,
+  '30D': 30,
+  '3M': 90,
+  '6M': 182,
+  '1Y': 365,
+  '2Y': 730,
+}
+
+const rangeCutoff = (range: RangeKey, now: Date): number | null => {
+  if (range === 'ALL') return null
+  if (range === 'YTD') return new Date(now.getFullYear(), 0, 1).getTime()
+  return now.getTime() - RANGE_DAYS[range] * DAY_MS
+}
+
+interface ChartPoint extends PricePoint {
+  time: number
+  formattedPrice: string
+  formattedDate: string
+}
+
+// A hover label anchored to the active data point (not the mouse position)
+function PointLabel() {
+  const activePoints = useActiveTooltipDataPoints<ChartPoint>()
+  const pointer = useActiveTooltipCoordinate()
+  const plotArea = usePlotArea()
+  const point = activePoints && activePoints.length > 0 ? activePoints[0] : undefined
+  const pixel = useCartesianScale(
+    point ? { x: point.time, y: point.price } : { x: 0, y: 0 },
+  )
+
+  if (!point || !pointer || !pixel) return null
+
+  const PROXIMITY = 24
+  if (Math.abs(pointer.y - pixel.y) > PROXIMITY) return null
+
+  // Always place the label diagonally off the point, flipping sides near edges
+  const EDGE_X = 80
+  const EDGE_Y = 48
+  const OFFSET_X = 16
+  let anchor: 'start' | 'end' = 'start'
+  let labelX = pixel.x + OFFSET_X
+  if (plotArea) {
+    const distLeft = pixel.x - plotArea.x
+    const distRight = plotArea.x + plotArea.width - pixel.x
+    if (distRight < EDGE_X && distRight <= distLeft) {
+      anchor = 'end'
+      labelX = pixel.x - OFFSET_X
+    }
+  }
+
+  const placeBelow = !!plotArea && pixel.y - plotArea.y < EDGE_Y
+  const dateY = placeBelow ? pixel.y + 40 : pixel.y - 32
+  const priceY = placeBelow ? pixel.y + 24 : pixel.y - 16
+
+  return (
+    <g className={styles.pointLabel}>
+      <text x={labelX} y={dateY} textAnchor={anchor} className={styles.pointLabelDate}>
+        {point.formattedDate}
+      </text>
+      <text x={labelX} y={priceY} textAnchor={anchor} className={styles.pointLabelText}>
+        {point.formattedPrice}
+      </text>
+    </g>
+  )
+}
+
 function GameDetailPage() {
   const { appid } = useParams<{ appid: string }>()
-  const [history, setHistory] = useState<PricePoint[]>([])
-  const gameName = `Game ${appid}`
+  const [data, setData] = useState<GamePriceData | null>(null)
+  const [range, setRange] = useState<RangeKey>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -44,9 +147,8 @@ function GameDetailPage() {
 
       try {
         setLoading(true)
-
-        const data = await getPriceHistory(parseInt(appid, 10))
-        setHistory(data)
+        const result = await getGamePriceHistory(parseInt(appid, 10))
+        setData(result)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load price history')
       } finally {
@@ -65,73 +167,159 @@ function GameDetailPage() {
     return <div className={styles.error}>Error: {error}</div>
   }
 
-  // Prepare data for chart (add formatted values for tooltip)
-  const chartData = history.map((point) => ({
+  const gameName = data?.name || `Game ${appid}`
+
+  // Collapse multiple records on the same calendar day to the day's last price
+  const byDay = new Map<string, PricePoint>()
+  for (const point of data?.history ?? []) {
+    byDay.set(new Date(point.recorded_at).toDateString(), point)
+  }
+  const dailyHistory = Array.from(byDay.values())
+
+  // Always show today: carry the last known price forward if it hasn't changed
+  const today = new Date()
+  const lastRecorded = dailyHistory.at(-1)
+  if (lastRecorded && new Date(lastRecorded.recorded_at).toDateString() !== today.toDateString()) {
+    dailyHistory.push({
+      price: lastRecorded.price,
+      currency: lastRecorded.currency,
+      recorded_at: today.toISOString(),
+    })
+  }
+
+  const currency = dailyHistory.at(-1)?.currency || 'USD'
+  const currentPrice = dailyHistory.at(-1)?.price ?? 0
+  const prices = dailyHistory.map((point) => point.price)
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0
+  const hasVariation = maxPrice !== minPrice
+  const atRecordedLow = hasVariation && currentPrice === minPrice
+  const atRecordedHigh = hasVariation && currentPrice === maxPrice
+  const yMax = niceMax(maxPrice)
+
+  const chartPoints: ChartPoint[] = dailyHistory.map((point) => ({
     ...point,
+    time: new Date(point.recorded_at).getTime(),
     formattedPrice: formatPrice(point.price, point.currency),
     formattedDate: formatDate(point.recorded_at),
   }))
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || payload.length === 0) return null
+  const cutoff = rangeCutoff(range, today)
+  const visiblePoints =
+    cutoff === null ? chartPoints : chartPoints.filter((point) => point.time >= cutoff)
 
-    const data = payload[0].payload as PricePoint & { formattedPrice: string; formattedDate: string }
-
-    return (
-      <div style={{
-        backgroundColor: 'white',
-        padding: '10px',
-        border: '1px solid #ccc',
-        borderRadius: '4px',
-      }}>
-        <p style={{ margin: 0 }}>{data.formattedDate}</p>
-        <p style={{ margin: 0, fontWeight: 'bold' }}>{data.formattedPrice}</p>
-      </div>
-    )
+  let xDomain: [number, number] = [0, 1]
+  if (visiblePoints.length === 1) {
+    xDomain = [visiblePoints[0].time - DAY_MS, visiblePoints[0].time + DAY_MS]
+  } else if (visiblePoints.length > 1) {
+    xDomain = [visiblePoints[0].time, visiblePoints[visiblePoints.length - 1].time]
   }
 
   return (
     <div className={styles.container}>
+      <Link to="/" className={styles.backLink}>← Back to Search</Link>
+
       <div className={styles.header}>
-        <Link to="/" className={styles.backLink}>← Back to Search</Link>
-        <h2>{gameName}</h2>
+        <h2 className={styles.title}>{gameName}</h2>
         <p className={styles.appId}>Steam App ID: {appid}</p>
       </div>
 
-      {history.length === 0 ? (
+      {dailyHistory.length === 0 ? (
         <p>No price history available yet. Check back later!</p>
       ) : (
-        <div className={styles.chartContainer}>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="recorded_at"
-                tickFormatter={(value) => formatDate(value)}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                tickFormatter={(value) => formatPrice(value, history[0]?.currency || 'USD')}
-                tick={{ fontSize: 12 }}
-                domain={['auto', 'auto']}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="stepAfter"
-                dataKey="price"
-                stroke="#8884d8"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          {history.length === 1 && (
-            <p className={styles.note}>
-              We just started tracking this game. More data will appear over time.
-            </p>
-          )}
-        </div>
+        <>
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Current Price</span>
+              <span className={styles.statValue}>
+                {formatPrice(currentPrice, currency)}
+                {atRecordedLow && (
+                  <span className={`${styles.badge} ${styles.badgeLow}`}>
+                    Recorded low
+                  </span>
+                )}
+                {atRecordedHigh && (
+                  <span className={`${styles.badge} ${styles.badgeHigh}`}>
+                    Recorded high
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Highest Price</span>
+              <span className={styles.statValue}>
+                {formatPrice(maxPrice, currency)}
+              </span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Lowest Price</span>
+              <span className={styles.statValue}>
+                {formatPrice(minPrice, currency)}
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.chartContainer}>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart
+                data={visiblePoints}
+                margin={{ top: 16, right: 16, bottom: 8, left: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="time"
+                  type="number"
+                  scale="time"
+                  domain={xDomain}
+                  tickFormatter={(value) => formatDate(value)}
+                  tick={{ fontSize: 12 }}
+                  tickMargin={14}
+                  minTickGap={32}
+                />
+                <YAxis
+                  tickFormatter={(value) => formatPrice(value, currency)}
+                  tick={{ fontSize: 12 }}
+                  domain={[0, yMax]}
+                  tickCount={5}
+                  allowDecimals={false}
+                  width={70}
+                  tickMargin={8}
+                />
+                <Tooltip content={() => null} cursor={false} />
+                <Line
+                  type="stepAfter"
+                  dataKey="price"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  isAnimationActive={false}
+                />
+                <PointLabel />
+              </LineChart>
+            </ResponsiveContainer>
+            {dailyHistory.length === 1 && (
+              <p className={styles.note}>
+                We just started tracking this game. More data will appear over time.
+              </p>
+            )}
+          </div>
+
+          <div className={styles.ranges}>
+            {RANGES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setRange(option)}
+                className={`${styles.rangeButton} ${
+                  range === option ? styles.rangeButtonActive : ''
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

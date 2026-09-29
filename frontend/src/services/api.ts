@@ -18,6 +18,12 @@ export interface PricePoint {
   recorded_at: string
 }
 
+export interface GamePriceData {
+  appid: number
+  name: string
+  history: PricePoint[]
+}
+
 export async function searchGames(query: string): Promise<SearchResult[]> {
   const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`)
   if (!response.ok) {
@@ -26,7 +32,9 @@ export async function searchGames(query: string): Promise<SearchResult[]> {
   return response.json()
 }
 
-export async function getPriceHistory(appId: number): Promise<PricePoint[]> {
+export async function getGamePriceHistory(
+  appId: number,
+): Promise<GamePriceData> {
   const response = await fetch(`${API_BASE}/games/${appId}/history`)
   if (!response.ok) {
     throw new Error('Failed to fetch price history')
