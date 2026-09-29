@@ -24,6 +24,13 @@
   color: var(--text-h);
 }
 
+.hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.85;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);

@@ -7,26 +7,36 @@ function SearchBar() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isSlow, setIsSlow] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
   const debounceTimer = useRef<number | null>(null)
+  const slowTimer = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Effect to handle debounced search
   useEffect(() => {
-    // Clear previous timer
+    // Clear previous timers
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current)
+    }
+    if (slowTimer.current) {
+      clearTimeout(slowTimer.current)
     }
 
     // Don't search if query is empty
     if (query.trim() === '') {
       setResults([])
       setIsLoading(false)
+      setIsSlow(false)
       return
     }
 
     setIsLoading(true)
+    setIsSlow(false)
+
+    // Show the cold-start hint if the request is still pending after 3s
+    slowTimer.current = setTimeout(() => setIsSlow(true), 3000)
 
     // Call the API after 300ms of no typing
     debounceTimer.current = setTimeout(async () => {
@@ -38,13 +48,20 @@ function SearchBar() {
         setResults([])
       } finally {
         setIsLoading(false)
+        setIsSlow(false)
+        if (slowTimer.current) {
+          clearTimeout(slowTimer.current)
+        }
       }
     }, 300)
 
-    // Cleanup function to clear timer if component unmounts or query changes
+    // Cleanup function to clear timers if component unmounts or query changes
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current)
+      }
+      if (slowTimer.current) {
+        clearTimeout(slowTimer.current)
       }
     }
   }, [query])
@@ -98,10 +115,17 @@ function SearchBar() {
       {isOpen && (
         <div className={styles.panel}>
           {isLoading ? (
-            <div className={styles.loadingRow}>
-              <span className={styles.spinner} aria-hidden="true" />
-              <span>Searching Steam...</span>
-            </div>
+            <>
+              <div className={styles.loadingRow}>
+                <span className={styles.spinner} aria-hidden="true" />
+                <span>Searching Steam...</span>
+              </div>
+              {isSlow && (
+                <p className={styles.slowHint}>
+                  Server is waking from cold start. This might take up to 1 minute.
+                </p>
+              )}
+            </>
           ) : results.length > 0 ? (
             <ul className={styles.results}>
               {results.map((game) => (
