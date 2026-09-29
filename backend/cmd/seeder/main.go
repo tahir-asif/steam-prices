@@ -68,7 +68,7 @@ func main() {
 
 // fetchTop100AppIDs calls the Steam Spy API and returns a slice of App IDs.
 func fetchTop100AppIDs() ([]int, error) {
-	url := "https://steamspy.com/api.php?request=top100in2weeks"
+	url := "https://steamspy.com/api.php?request=top100forever"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("http request failed: %w", err)
