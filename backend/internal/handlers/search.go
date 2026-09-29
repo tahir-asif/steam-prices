@@ -5,6 +5,7 @@ import (
     "fmt"
     "log"
     "net/http"
+    "net/url"
     "github.com/gin-gonic/gin"
 )
 
@@ -15,7 +16,7 @@ func (h *Handler) Search(c *gin.Context) {
         return
     }
 
-    steamURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&cc=ca&l=english", query)
+    steamURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&cc=ca&l=english", url.QueryEscape(query))
     resp, err := http.Get(steamURL)
     if err != nil {
         log.Printf("Steam search error: %v", err)
