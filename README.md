@@ -1,11 +1,10 @@
 # Steam Price Monitor
 
-A full‑stack web application that tracks and visualizes historical Steam game prices. Search for any Steam game, view its price trend over time, and let the backend keep the data fresh every hour—now fully hosted on AWS.
+A full‑stack web application that tracks and visualizes historical Steam game prices. Search for any Steam game, view its price trend over time, and let the backend keep the data fresh every hour.
 
-**Live Demo (AWS):** [d35qn74h6do2xm.cloudfront.net](https://d35qn74h6do2xm.cloudfront.net)
+**Live Demo:** [steam-prices.vercel.app](https://steam-prices.vercel.app)  
 
-> **Legacy Demo (Vercel / Render / Neon):** [steam-prices.vercel.app](https://steam-prices.vercel.app)  
-> *This older deployment remains available temporarily for reference, but will be retired soon.*
+> Note: This used to be hosted on AWS, but its now been moved to Vercel, Render & Neon due to cost reasons.
 
 ## Features
 
