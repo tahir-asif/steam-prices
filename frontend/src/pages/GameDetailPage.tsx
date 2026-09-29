@@ -23,6 +23,8 @@ import LoadingSpinner from '../components/LoadingSpinner'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+const toTime = (value: string) => new Date(value).getTime()
+
 // Format cents to a currency string with a space between symbol and value
 const formatPrice = (cents: number, currency: string) => {
   const code = currency || 'USD'
@@ -63,17 +65,15 @@ const niceMax = (value: number) => {
   return step * magnitude
 }
 
-type RangeKey = '7D' | '30D' | '3M' | '6M' | 'YTD' | '1Y' | '2Y' | 'ALL'
+type RangeKey = '7D' | '30D' | '3M' | '6M' | 'YTD' | 'ALL'
 
-const RANGES: RangeKey[] = ['7D', '30D', '3M', '6M', 'YTD', '1Y', '2Y', 'ALL']
+const RANGES: RangeKey[] = ['7D', '30D', '3M', '6M', 'YTD', 'ALL']
 
 const RANGE_DAYS: Record<string, number> = {
   '7D': 7,
   '30D': 30,
   '3M': 90,
   '6M': 182,
-  '1Y': 365,
-  '2Y': 730,
 }
 
 const rangeCutoff = (range: RangeKey, now: Date): number | null => {
@@ -86,6 +86,23 @@ interface ChartPoint extends PricePoint {
   time: number
   formattedPrice: string
   formattedDate: string
+  synthetic?: boolean
+}
+
+// Only real price changes get a dot; synthetic boundary points just extend the line
+const renderDot = ({
+  cx,
+  cy,
+  payload,
+}: {
+  cx?: number
+  cy?: number
+  payload?: ChartPoint
+}) => {
+  if (cx == null || cy == null || payload?.synthetic) {
+    return <g />
+  }
+  return <circle className={styles.chartDot} cx={cx} cy={cy} r={4} />
 }
 
 // A hover label anchored to the active data point (not the mouse position)
@@ -169,27 +186,45 @@ function GameDetailPage() {
 
   const gameName = data?.name || `Game ${appid}`
 
-  // Collapse multiple records on the same calendar day to the day's last price
-  const byDay = new Map<string, PricePoint>()
-  for (const point of data?.history ?? []) {
-    byDay.set(new Date(point.recorded_at).toDateString(), point)
+  // Sort records oldest first, then collapse runs of the same price
+  const rawHistory = [...(data?.history ?? [])].sort(
+    (a, b) => toTime(a.recorded_at) - toTime(b.recorded_at),
+  )
+  const changePoints: PricePoint[] = []
+  for (const point of rawHistory) {
+    const previous = changePoints.at(-1)
+    if (
+      !previous ||
+      previous.price !== point.price ||
+      previous.currency !== point.currency
+    ) {
+      changePoints.push(point)
+    }
   }
-  const dailyHistory = Array.from(byDay.values())
 
-  // Always show today: carry the last known price forward if it hasn't changed
+  // Base timeline: real price changes plus a synthetic point for today
   const today = new Date()
-  const lastRecorded = dailyHistory.at(-1)
-  if (lastRecorded && new Date(lastRecorded.recorded_at).toDateString() !== today.toDateString()) {
-    dailyHistory.push({
-      price: lastRecorded.price,
-      currency: lastRecorded.currency,
+  const prepared: (PricePoint & { synthetic: boolean })[] = changePoints.map(
+    (point) => ({ ...point, synthetic: false }),
+  )
+  const lastChange = prepared.at(-1)
+  if (
+    lastChange &&
+    new Date(lastChange.recorded_at).toDateString() !== today.toDateString()
+  ) {
+    prepared.push({
+      price: lastChange.price,
+      currency: lastChange.currency,
       recorded_at: today.toISOString(),
+      synthetic: true,
     })
   }
 
-  const currency = dailyHistory.at(-1)?.currency || 'USD'
-  const currentPrice = dailyHistory.at(-1)?.price ?? 0
-  const prices = dailyHistory.map((point) => point.price)
+  const singlePoint = prepared.length === 1
+
+  const currency = prepared.at(-1)?.currency || 'USD'
+  const currentPrice = prepared.at(-1)?.price ?? 0
+  const prices = prepared.map((point) => point.price)
   const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0
   const hasVariation = maxPrice !== minPrice
@@ -197,22 +232,45 @@ function GameDetailPage() {
   const atRecordedHigh = hasVariation && currentPrice === maxPrice
   const yMax = niceMax(maxPrice)
 
-  const chartPoints: ChartPoint[] = dailyHistory.map((point) => ({
+  // Trim to the selected range, adding a synthetic point at the range start
+  const cutoff = rangeCutoff(range, today)
+  let visible = prepared
+  if (cutoff !== null) {
+    const pointsInRange = prepared.filter((point) => toTime(point.recorded_at) >= cutoff)
+    const cutoffDay = new Date(cutoff).toDateString()
+    const hasCutoffPoint = pointsInRange.some(
+      (point) => new Date(point.recorded_at).toDateString() === cutoffDay,
+    )
+    const priceAtCutoff = changePoints
+      .filter((point) => toTime(point.recorded_at) <= cutoff)
+      .at(-1)?.price
+
+    visible = pointsInRange
+    if (priceAtCutoff !== undefined && !hasCutoffPoint) {
+      visible = [
+        {
+          price: priceAtCutoff,
+          currency,
+          recorded_at: new Date(cutoff).toISOString(),
+          synthetic: true,
+        },
+        ...pointsInRange,
+      ]
+    }
+  }
+
+  const chartPoints: ChartPoint[] = visible.map((point) => ({
     ...point,
-    time: new Date(point.recorded_at).getTime(),
+    time: toTime(point.recorded_at),
     formattedPrice: formatPrice(point.price, point.currency),
     formattedDate: formatDate(point.recorded_at),
   }))
 
-  const cutoff = rangeCutoff(range, today)
-  const visiblePoints =
-    cutoff === null ? chartPoints : chartPoints.filter((point) => point.time >= cutoff)
-
   let xDomain: [number, number] = [0, 1]
-  if (visiblePoints.length === 1) {
-    xDomain = [visiblePoints[0].time - DAY_MS, visiblePoints[0].time + DAY_MS]
-  } else if (visiblePoints.length > 1) {
-    xDomain = [visiblePoints[0].time, visiblePoints[visiblePoints.length - 1].time]
+  if (chartPoints.length === 1) {
+    xDomain = [chartPoints[0].time - DAY_MS, chartPoints[0].time + DAY_MS]
+  } else if (chartPoints.length > 1) {
+    xDomain = [chartPoints[0].time, chartPoints[chartPoints.length - 1].time]
   }
 
   return (
@@ -224,7 +282,7 @@ function GameDetailPage() {
         <p className={styles.appId}>Steam App ID: {appid}</p>
       </div>
 
-      {dailyHistory.length === 0 ? (
+      {prepared.length === 0 ? (
         <p>No price history available yet. Check back later!</p>
       ) : (
         <>
@@ -262,7 +320,7 @@ function GameDetailPage() {
           <div className={styles.chartContainer}>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart
-                data={visiblePoints}
+                data={chartPoints}
                 margin={{ top: 16, right: 16, bottom: 8, left: 4 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
@@ -291,14 +349,14 @@ function GameDetailPage() {
                   dataKey="price"
                   stroke="currentColor"
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={renderDot}
                   activeDot={{ r: 6 }}
                   isAnimationActive={false}
                 />
                 <PointLabel />
               </LineChart>
             </ResponsiveContainer>
-            {dailyHistory.length === 1 && (
+            {singlePoint && (
               <p className={styles.note}>
                 We just started tracking this game. More data will appear over time.
               </p>
