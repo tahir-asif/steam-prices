@@ -134,7 +134,7 @@ function SearchBar() {
                   onClick={() => handleResultClick(game.appid)}
                   className={styles.dropdownItem}
                 >
-                  <img src={game.icon} alt={game.name} width="32" height="32" />
+                  <img src={game.icon} alt="" className={styles.dropdownThumb} />
                   <span>{game.name}</span>
                 </li>
               ))}

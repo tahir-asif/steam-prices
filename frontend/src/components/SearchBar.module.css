@@ -60,6 +60,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+.dropdownThumb {
+  width: 72px;
+  height: 27px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-2);
+}
+
 .dropdownItem:last-child {
   border-bottom: none;
 }
