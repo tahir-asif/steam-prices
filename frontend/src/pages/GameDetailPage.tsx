@@ -157,6 +157,7 @@ function GameDetailPage() {
   const [range, setRange] = useState<RangeKey>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [heroFailed, setHeroFailed] = useState(false)
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -275,6 +276,15 @@ function GameDetailPage() {
 
   return (
     <div className={styles.container}>
+      {appid && !heroFailed && (
+        <img
+          src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_hero.jpg`}
+          alt=""
+          className={styles.heroImage}
+          onError={() => setHeroFailed(true)}
+        />
+      )}
+
       <Link to="/" className={styles.backLink}>← Back to Search</Link>
 
       <div className={styles.header}>
