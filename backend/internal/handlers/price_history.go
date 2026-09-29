@@ -22,7 +22,11 @@ func (h *Handler) PriceHistory(c *gin.Context) {
 	}
 
 	var gameID int
-	err = h.DB.QueryRow("SELECT id FROM games WHERE steam_app_id = $1", appID).Scan(&gameID)
+	var gameName string
+	err = h.DB.QueryRow(
+		"SELECT id, name FROM games WHERE steam_app_id = $1",
+		appID,
+	).Scan(&gameID, &gameName)
 
 	// Game not in database – fetch it from Steam and start tracking
 	if err == sql.ErrNoRows {
@@ -38,6 +42,7 @@ func (h *Handler) PriceHistory(c *gin.Context) {
 
 		// Insert the game
 		gameID, err = database.InsertGame(h.DB, appID, game.Name)
+		gameName = game.Name
 		if err != nil {
 			log.Printf("Failed to insert game %d: %v", appID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save game"})
@@ -76,7 +81,7 @@ func (h *Handler) PriceHistory(c *gin.Context) {
 		Currency   string    `json:"currency"`
 		RecordedAt time.Time `json:"recorded_at"`
 	}
-	var history []pricePoint
+	history := []pricePoint{}
 
 	for rows.Next() {
 		var p pricePoint
@@ -87,5 +92,9 @@ func (h *Handler) PriceHistory(c *gin.Context) {
 		history = append(history, p)
 	}
 
-	c.JSON(http.StatusOK, history)
+	c.JSON(http.StatusOK, gin.H{
+		"appid":   appID,
+		"name":    gameName,
+		"history": history,
+	})
 }

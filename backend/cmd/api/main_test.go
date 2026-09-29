@@ -80,11 +80,24 @@ func TestPriceHistoryEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var history []map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &history); err != nil {
+	var payload struct {
+		AppID   int    `json:"appid"`
+		Name    string `json:"name"`
+		History []struct {
+			Price    int    `json:"price"`
+			Currency string `json:"currency"`
+		} `json:"history"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
-	if len(history) != 1 {
-		t.Errorf("expected 1 history entry, got %d", len(history))
+	if payload.AppID != 999 {
+		t.Errorf("expected appid 999, got %d", payload.AppID)
+	}
+	if payload.Name != "Test Game" {
+		t.Errorf("expected name 'Test Game', got '%s'", payload.Name)
+	}
+	if len(payload.History) != 1 {
+		t.Errorf("expected 1 history entry, got %d", len(payload.History))
 	}
 }
